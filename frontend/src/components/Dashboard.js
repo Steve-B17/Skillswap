@@ -52,6 +52,21 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState('student');
 
+  const fetchUserReviews = useCallback(async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${config.API_URL}/api/reviews/user/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserReviews(prev => ({
+        ...prev,
+        [userId]: response.data
+      }));
+    } catch (error) {
+      setError('Failed to fetch reviews');
+    }
+  }, []);
+
   const fetchSessions = useCallback(async () => {
     try {
       setIsLoading(true);
