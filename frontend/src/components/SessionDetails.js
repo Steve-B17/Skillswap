@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -52,23 +52,7 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
   const [sessionReviews, setSessionReviews] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
 
-  useEffect(() => {
-    if (session) {
-      fetchSessionReviews();
-      // Get current user ID from token
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          setCurrentUserId(payload.userId);
-        } catch (error) {
-          console.error('Error decoding token:', error);
-        }
-      }
-    }
-  }, [session]);
-
-  const fetchSessionReviews = async () => {
+  const fetchSessionReviews = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
@@ -84,7 +68,23 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
     } catch (error) {
       console.error('Failed to fetch session reviews:', error);
     }
-  };
+  }, [session._id]);
+
+  useEffect(() => {
+    if (session) {
+      fetchSessionReviews();
+      // Get current user ID from token
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          setCurrentUserId(payload.userId);
+        } catch (error) {
+          console.error('Error decoding token:', error);
+        }
+      }
+    }
+  }, [session, fetchSessionReviews]);
 
   const handleStatusUpdate = async (newStatus) => {
     try {
@@ -188,7 +188,7 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
       const isTeacher = session.teacher._id === currentUserId;
       const revieweeId = isTeacher ? session.student._id : session.teacher._id;
 
-      const response = await axios.post(
+      await axios.post(
         'http://localhost:5000/api/reviews',
         {
           session: session._id,
@@ -236,7 +236,6 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
 
   const canUpdateNotes = userRole === 'student' && session.status === 'pending';
   const canUpdateMeetingLink = userRole === 'student' && session.status === 'confirmed';
-  const canReview = userRole === 'student' && session.status === 'completed' && !sessionReviews.some(review => review.reviewer._id === currentUserId);
   const canCompleteSession = userRole === 'teacher' && session.status === 'confirmed';
 
   return (
