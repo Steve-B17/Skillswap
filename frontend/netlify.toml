@@ -1,6 +1,11 @@
 [build]
-  command = "npm run build"
+  base = "frontend"
+  command = "npm install && npm run build"
   publish = "build"
+  environment = { REACT_APP_API_URL = "https://skillswap-backend.onrender.com" }
+
+[build.environment]
+  NODE_VERSION = "18.17.0"
 
 [[redirects]]
   from = "/*"
