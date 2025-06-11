@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
-  Paper,
   TextField,
   Button,
   Typography,
@@ -13,8 +12,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  InputAdornment
+  InputAdornment,
+  IconButton
 } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import axios from 'axios';
 import config from '../config';
 
@@ -154,7 +156,12 @@ const Login = ({ onLogin }) => {
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    {/* Add password visibility toggle logic here */}
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
                   </InputAdornment>
                 ),
               }}

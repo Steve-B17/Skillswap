@@ -4,74 +4,26 @@ import {
   Grid,
   Paper,
   Typography,
-  Button,
   Box,
+  Button,
+  TextField,
   Card,
   CardContent,
   CardActions,
-  Tabs,
-  Tab,
-  TextField,
-  InputAdornment,
-  IconButton,
-  Dialog,
-  Alert,
-  Snackbar,
-  CircularProgress,
   Rating,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-  Chip
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  CircularProgress,
+  Chip,
+  Avatar
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import SearchIcon from '@mui/icons-material/Search';
-import StarIcon from '@mui/icons-material/Star';
-import PersonIcon from '@mui/icons-material/Person';
 import axios from 'axios';
 import config from '../config';
 import SessionDetails from './SessionDetails';
 import SessionBooking from './SessionBooking';
-
-const StyledPaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(4),
-  background: 'rgba(255, 255, 255, 0.95)',
-  backdropFilter: 'blur(10px)',
-  borderRadius: '24px',
-  boxShadow: '0 8px 32px rgba(255, 159, 67, 0.1)',
-  border: '1px solid rgba(255, 159, 67, 0.1)',
-}));
-
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: '16px',
-  transition: 'all 0.3s ease',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: '0 8px 24px rgba(255, 159, 67, 0.15)',
-  },
-}));
-
-const ReviewList = styled(List)(({ theme }) => ({
-  maxHeight: '200px',
-  overflowY: 'auto',
-  '&::-webkit-scrollbar': {
-    width: '8px',
-  },
-  '&::-webkit-scrollbar-track': {
-    background: 'rgba(255, 159, 67, 0.1)',
-    borderRadius: '4px',
-  },
-  '&::-webkit-scrollbar-thumb': {
-    background: 'rgba(255, 159, 67, 0.3)',
-    borderRadius: '4px',
-    '&:hover': {
-      background: 'rgba(255, 159, 67, 0.5)',
-    },
-  },
-}));
 
 const Dashboard = () => {
   const [sessions, setSessions] = useState([]);

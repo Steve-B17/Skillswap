@@ -39,19 +39,16 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   margin: '0 auto',
 }));
 
-const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
-  const [meetingLink, setMeetingLink] = useState(session.meetingLink || '');
-  const [notes, setNotes] = useState(session.notes || '');
+const SessionDetails = ({ session, open, onClose, onUpdate, userRole }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-  const [review, setReview] = useState({
-    rating: 5,
-    comment: ''
-  });
   const [isLoading, setIsLoading] = useState(false);
   const [sessionReviews, setSessionReviews] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [review, setReview] = useState({ rating: 5, comment: '' });
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [meetingLink, setMeetingLink] = useState('');
+  const [notes, setNotes] = useState('');
 
   const fetchSessionReviews = useCallback(async () => {
     try {
@@ -66,7 +63,7 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
   }, [session._id]);
 
   useEffect(() => {
-    if (session) {
+    if (open) {
       fetchSessionReviews();
       // Get current user ID from token
       const token = localStorage.getItem('token');
@@ -79,7 +76,7 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
         }
       }
     }
-  }, [session, fetchSessionReviews]);
+  }, [open, fetchSessionReviews]);
 
   const handleStatusUpdate = async (newStatus) => {
     try {
