@@ -24,7 +24,14 @@ import {
   CircularProgress,
   Chip,
   useTheme,
-  Divider
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
@@ -50,6 +57,8 @@ import {
   Line
 } from 'recharts';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import config from '../config';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -89,6 +98,7 @@ const StatCard = styled(Card)(({ theme }) => ({
 
 const AdminDashboard = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,6 +118,9 @@ const AdminDashboard = () => {
     completedSessions: 0,
     cancelledSessions: 0
   });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 

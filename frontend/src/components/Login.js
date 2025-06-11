@@ -1,59 +1,22 @@
 import React, { useState } from 'react';
-import { Container, Paper, TextField, Button, Typography, Box, InputAdornment, IconButton, Grid, Alert, Link, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Alert,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment
+} from '@mui/material';
 import axios from 'axios';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import EmailIcon from '@mui/icons-material/Email';
-import LockIcon from '@mui/icons-material/Lock';
-import PersonIcon from '@mui/icons-material/Person';
-import learningIllustration from '../assets/learning-illustration.svg';
-import { Avatar, FormControlLabel } from '@mui/material';
-import { Checkbox } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import config from '../config';
-
-const StyledPaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(4),
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  background: theme.palette.background.paper,
-  borderRadius: '24px',
-  boxShadow: theme.shadows[3],
-  height: '100%',
-  justifyContent: 'center',
-  maxWidth: '500px',
-  margin: '0 auto',
-}));
-
-const StyledTextField = styled(TextField)(({ theme }) => ({
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '12px',
-    '&:hover': {
-      backgroundColor: theme.palette.background.default,
-    },
-  },
-  marginBottom: theme.spacing(2),
-}));
-
-const LoginButton = styled(Button)(({ theme }) => ({
-  borderRadius: '12px',
-  padding: '12px 0',
-  marginTop: theme.spacing(3),
-  textTransform: 'none',
-  fontSize: '1.1rem',
-  fontWeight: 600,
-}));
-
-const IllustrationContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  height: '100%',
-  padding: theme.spacing(4),
-}));
 
 const Login = ({ onLogin }) => {
   const [formData, setFormData] = useState({
@@ -144,9 +107,6 @@ const Login = ({ onLogin }) => {
             alignItems: 'center',
           }}
         >
-          <Avatar sx={{ m: 1, bgcolor: 'secondary.main' }}>
-            <LockOutlinedIcon />
-          </Avatar>
           <Typography component="h1" variant="h5">
             Sign in
           </Typography>
@@ -194,13 +154,7 @@ const Login = ({ onLogin }) => {
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
+                    {/* Add password visibility toggle logic here */}
                   </InputAdornment>
                 ),
               }}
@@ -217,20 +171,8 @@ const Login = ({ onLogin }) => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? <CircularProgress size={24} /> : 'Sign In'}
             </Button>
-            <Grid container spacing={2}>
-              <Grid xs={12} sm={6}>
-                <Link component={RouterLink} to="/register" variant="body2">
-                  {"Don't have an account? Sign Up"}
-                </Link>
-              </Grid>
-              <Grid xs={12} sm={6}>
-                <Link component={RouterLink} to="/forgot-password" variant="body2">
-                  Forgot password?
-                </Link>
-              </Grid>
-            </Grid>
           </Box>
         </Box>
       </Container>

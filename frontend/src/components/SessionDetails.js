@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -26,6 +26,7 @@ import { styled } from '@mui/material/styles';
 import axios from 'axios';
 import { Rating } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
+import config from '../config';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -52,6 +53,18 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
   const [sessionReviews, setSessionReviews] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
 
+  const fetchSessionReviews = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${config.API_URL}/api/reviews/session/${session._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSessionReviews(response.data);
+    } catch (error) {
+      setError('Failed to fetch reviews');
+    }
+  }, [session._id]);
+
   useEffect(() => {
     if (session) {
       fetchSessionReviews();
@@ -66,25 +79,7 @@ const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
         }
       }
     }
-  }, [session]);
-
-  const fetchSessionReviews = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `http://localhost:5000/api/reviews/session/${session._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      setSessionReviews(response.data);
-    } catch (error) {
-      console.error('Failed to fetch session reviews:', error);
-    }
-  };
+  }, [session, fetchSessionReviews]);
 
   const handleStatusUpdate = async (newStatus) => {
     try {

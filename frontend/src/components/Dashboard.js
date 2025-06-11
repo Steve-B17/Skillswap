@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Grid,
@@ -103,22 +103,7 @@ const Dashboard = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedTab === 0) {
-      fetchSessions();
-    } else if (selectedTab === 1) {
-      fetchUsers();
-    }
-  }, [selectedTab, searchQuery]);
-
-  // Fetch reviews when a user is selected for viewing reviews
-  useEffect(() => {
-    if (selectedUser && isReviewsOpen) {
-      fetchUserReviews(selectedUser._id);
-    }
-  }, [selectedUser, isReviewsOpen]);
-
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
@@ -135,9 +120,9 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userRole]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${config.API_URL}/api/users/search`, {
@@ -147,17 +132,26 @@ const Dashboard = () => {
         }
       });
 
-      // Get current user ID from token
       const payload = JSON.parse(atob(token.split('.')[1]));
       const currentUserId = payload.userId;
-
-      // Filter out the current user from the list
       const filteredUsers = response.data.filter(user => user._id !== currentUserId);
       setUsers(filteredUsers);
     } catch (error) {
       setError('Failed to fetch users');
     }
-  };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    fetchSessions();
+    fetchUsers();
+  }, [fetchSessions, fetchUsers]);
+
+  // Fetch reviews when a user is selected for viewing reviews
+  useEffect(() => {
+    if (selectedUser && isReviewsOpen) {
+      fetchUserReviews(selectedUser._id);
+    }
+  }, [selectedUser, isReviewsOpen]);
 
   const fetchUserReviews = async (userId) => {
     try {
