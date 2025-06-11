@@ -12,6 +12,7 @@ import learningIllustration from '../assets/learning-illustration.svg';
 import { Avatar, FormControlLabel } from '@mui/material';
 import { Checkbox } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import config from '../config';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -79,8 +80,8 @@ const Login = ({ onLogin }) => {
 
     try {
       const endpoint = formData.role === 'admin' 
-        ? 'http://localhost:5000/api/admin/auth/login' 
-        : 'http://localhost:5000/api/users/login';
+        ? `${config.API_URL}/api/admin/auth/login` 
+        : `${config.API_URL}/api/users/login`;
 
       const response = await axios.post(endpoint, {
         email: formData.email,

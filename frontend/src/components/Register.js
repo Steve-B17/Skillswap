@@ -9,6 +9,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import registerIllustration from '../assets/register-illustration.svg';
+import config from '../config';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -79,7 +80,7 @@ const Register = ({ onLogin }) => {
 
     try {
       const { confirmPassword, ...registerData } = formData;
-      const response = await axios.post('http://localhost:5000/api/users/register', registerData);
+      const response = await axios.post(`${config.API_URL}/api/users/register`, registerData);
       localStorage.setItem('token', response.data.token);
       onLogin(response.data.user);
       navigate('/dashboard');

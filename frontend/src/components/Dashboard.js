@@ -32,6 +32,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import StarIcon from '@mui/icons-material/Star';
 import PersonIcon from '@mui/icons-material/Person';
 import axios from 'axios';
+import config from '../config';
 import SessionDetails from './SessionDetails';
 import SessionBooking from './SessionBooking';
 
@@ -122,8 +123,8 @@ const Dashboard = () => {
       setIsLoading(true);
       const token = localStorage.getItem('token');
       const endpoint = userRole === 'teacher' 
-        ? 'http://localhost:5000/api/sessions/teacher-sessions'
-        : 'http://localhost:5000/api/sessions/my-sessions';
+        ? `${config.API_URL}/api/sessions/teacher-sessions`
+        : `${config.API_URL}/api/sessions/my-sessions`;
       
       const response = await axios.get(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
@@ -139,7 +140,7 @@ const Dashboard = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/users/search', {
+      const response = await axios.get(`${config.API_URL}/api/users/search`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
           skill: searchQuery || ''
@@ -161,7 +162,7 @@ const Dashboard = () => {
   const fetchUserReviews = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/reviews/user/${userId}`, {
+      const response = await axios.get(`${config.API_URL}/api/reviews/user/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserReviews(prev => ({
@@ -177,7 +178,7 @@ const Dashboard = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.patch(
-        `http://localhost:5000/api/sessions/${updatedSession._id}`,
+        `${config.API_URL}/api/sessions/${updatedSession._id}`,
         { status: updatedSession.status },
         {
           headers: { Authorization: `Bearer ${token}` }
