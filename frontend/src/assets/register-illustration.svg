@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800px" height="600px" viewBox="0 0 800 600" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <!-- Background Elements -->
+        <circle fill="#2E3B55" opacity="0.1" cx="400" cy="300" r="250"/>
+        <circle fill="#4A5D7A" opacity="0.1" cx="400" cy="300" r="200"/>
+        
+        <!-- User Profile -->
+        <circle cx="400" cy="200" r="60" fill="#2E3B55"/>
+        <path d="M340,350 C340,300 460,300 460,350" fill="#2E3B55"/>
+        
+        <!-- Connection Lines -->
+        <path d="M200,200 L300,200" stroke="#FF6B6B" stroke-width="4" stroke-dasharray="10,5"/>
+        <path d="M500,200 L600,200" stroke="#FF6B6B" stroke-width="4" stroke-dasharray="10,5"/>
+        
+        <!-- Decorative Elements -->
+        <circle cx="200" cy="200" r="30" fill="#4A5D7A" opacity="0.5"/>
+        <circle cx="600" cy="200" r="30" fill="#4A5D7A" opacity="0.5"/>
+        <circle cx="400" cy="400" r="20" fill="#FF6B6B" opacity="0.5"/>
+        
+        <!-- Plus Signs -->
+        <path d="M180,200 L220,200" stroke="#FF6B6B" stroke-width="4"/>
+        <path d="M200,180 L200,220" stroke="#FF6B6B" stroke-width="4"/>
+        <path d="M580,200 L620,200" stroke="#FF6B6B" stroke-width="4"/>
+        <path d="M600,180 L600,220" stroke="#FF6B6B" stroke-width="4"/>
+    </g>
+</svg> 

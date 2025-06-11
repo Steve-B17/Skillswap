@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800px" height="600px" viewBox="0 0 800 600" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <!-- Background Elements -->
+        <circle fill="#2E3B55" opacity="0.1" cx="400" cy="300" r="250"/>
+        <circle fill="#4A5D7A" opacity="0.1" cx="400" cy="300" r="200"/>
+        
+        <!-- Book -->
+        <path d="M300,200 L500,200 L500,400 L300,400 Z" fill="#2E3B55"/>
+        <path d="M300,200 L500,200 L500,400 L300,400 Z" stroke="#4A5D7A" stroke-width="4"/>
+        <path d="M300,250 L500,250" stroke="#4A5D7A" stroke-width="2"/>
+        <path d="M300,300 L500,300" stroke="#4A5D7A" stroke-width="2"/>
+        <path d="M300,350 L500,350" stroke="#4A5D7A" stroke-width="2"/>
+        
+        <!-- Light Bulb -->
+        <circle cx="400" cy="150" r="40" fill="#FF6B6B"/>
+        <path d="M400,190 L400,220" stroke="#FF6B6B" stroke-width="4"/>
+        <path d="M380,220 L420,220" stroke="#FF6B6B" stroke-width="4"/>
+        
+        <!-- Decorative Elements -->
+        <circle cx="200" cy="150" r="20" fill="#4A5D7A" opacity="0.5"/>
+        <circle cx="600" cy="450" r="30" fill="#2E3B55" opacity="0.5"/>
+        <circle cx="650" cy="200" r="15" fill="#FF6B6B" opacity="0.5"/>
+    </g>
+</svg> 
