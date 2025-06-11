@@ -3,9 +3,9 @@ import { createTheme } from '@mui/material/styles';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#2E3B55', // Deep blue
-      light: '#4A5D7A',
-      dark: '#1A2536',
+      main: '#FF8C00', // Deep orange
+      light: '#FFA533',
+      dark: '#CC7000',
       contrastText: '#ffffff',
     },
     secondary: {
@@ -15,7 +15,7 @@ const theme = createTheme({
       contrastText: '#ffffff',
     },
     background: {
-      default: '#F5F7FA',
+      default: '#FFF8F0', // Light orange tint
       paper: '#FFFFFF',
     },
     text: {
@@ -65,7 +65,7 @@ const theme = createTheme({
         contained: {
           boxShadow: 'none',
           '&:hover': {
-            boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
+            boxShadow: '0px 4px 8px rgba(255, 140, 0, 0.2)',
           },
         },
       },
@@ -74,11 +74,11 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 16,
-          boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0px 4px 20px rgba(255, 140, 0, 0.05)',
           transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
           '&:hover': {
             transform: 'translateY(-4px)',
-            boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
+            boxShadow: '0px 8px 24px rgba(255, 140, 0, 0.1)',
           },
         },
       },
@@ -88,6 +88,12 @@ const theme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: 8,
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#FF8C00',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#FF8C00',
+            },
           },
         },
       },
@@ -95,7 +101,7 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0px 2px 10px rgba(255, 140, 0, 0.1)',
         },
       },
     },

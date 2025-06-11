@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -26,7 +26,6 @@ import { styled } from '@mui/material/styles';
 import axios from 'axios';
 import { Rating } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
-import config from '../config';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -39,31 +38,22 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   margin: '0 auto',
 }));
 
-const SessionDetails = ({ session, open, onClose, onUpdate, userRole }) => {
+const SessionDetails = ({ session, onUpdate, onClose, userRole }) => {
+  const [meetingLink, setMeetingLink] = useState(session.meetingLink || '');
+  const [notes, setNotes] = useState(session.notes || '');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [review, setReview] = useState({
+    rating: 5,
+    comment: ''
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [sessionReviews, setSessionReviews] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [review, setReview] = useState({ rating: 5, comment: '' });
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-  const [meetingLink, setMeetingLink] = useState('');
-  const [notes, setNotes] = useState('');
-
-  const fetchSessionReviews = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${config.API_URL}/api/reviews/session/${session._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSessionReviews(response.data);
-    } catch (error) {
-      setError('Failed to fetch reviews');
-    }
-  }, [session._id]);
 
   useEffect(() => {
-    if (open) {
+    if (session) {
       fetchSessionReviews();
       // Get current user ID from token
       const token = localStorage.getItem('token');
@@ -76,7 +66,25 @@ const SessionDetails = ({ session, open, onClose, onUpdate, userRole }) => {
         }
       }
     }
-  }, [open, fetchSessionReviews]);
+  }, [session]);
+
+  const fetchSessionReviews = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/reviews/session/${session._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      setSessionReviews(response.data);
+    } catch (error) {
+      console.error('Failed to fetch session reviews:', error);
+    }
+  };
 
   const handleStatusUpdate = async (newStatus) => {
     try {
@@ -439,7 +447,7 @@ const SessionDetails = ({ session, open, onClose, onUpdate, userRole }) => {
               </Grid>
             )}
 
-            {canReview && (
+            {session.status === 'completed' && userRole === 'student' && !sessionReviews.some(review => review.reviewer._id === currentUserId) && (
               <Grid item xs={12}>
                 <Box sx={{ mt: 3, p: 2, bgcolor: 'rgba(255, 159, 67, 0.1)', borderRadius: 1 }}>
                   <Typography variant="h6" gutterBottom sx={{ color: '#FF9F43' }}>
@@ -467,7 +475,7 @@ const SessionDetails = ({ session, open, onClose, onUpdate, userRole }) => {
             {sessionReviews.length > 0 && (
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                  Reviews
+                  Session Reviews
                 </Typography>
                 <List>
                   {sessionReviews.map((review, index) => (

@@ -16,14 +16,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Card,
-  CardContent
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
-import config from '../config';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -151,6 +148,7 @@ const Profile = () => {
       setIsLoading(true);
       const token = localStorage.getItem("token");
 
+      // Only send the fields that have changed
       const updates = {
         name: profile.name,
         bio: profile.bio,
@@ -163,7 +161,7 @@ const Profile = () => {
       };
 
       const response = await axios.patch(
-        `${config.API_URL}/api/users/profile`,
+        "http://localhost:5000/api/users/profile",
         updates,
         {
           headers: {

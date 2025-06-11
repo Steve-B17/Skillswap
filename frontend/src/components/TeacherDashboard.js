@@ -346,7 +346,7 @@ const TeacherDashboard = () => {
             session={selectedSession}
             onClose={() => setIsSessionDetailsOpen(false)}
             onUpdate={handleSessionUpdate}
-            isTeacher={true}
+            userRole="teacher"
           />
         )}
       </Dialog>
