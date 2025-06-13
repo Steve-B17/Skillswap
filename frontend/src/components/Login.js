@@ -5,12 +5,8 @@ import { styled } from '@mui/material/styles';
 import axios from 'axios';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import EmailIcon from '@mui/icons-material/Email';
-import LockIcon from '@mui/icons-material/Lock';
-import PersonIcon from '@mui/icons-material/Person';
-import learningIllustration from '../assets/learning-illustration.svg';
-import { Avatar, FormControlLabel } from '@mui/material';
-import { Checkbox } from '@mui/material';
+
+import { Avatar } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import config from '../config';
 
@@ -220,12 +216,12 @@ const Login = ({ onLogin }) => {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
             <Grid container spacing={2}>
-              <Grid xs={12} sm={6}>
+              <Grid item xs={12} sm={6}>
                 <Link component={RouterLink} to="/register" variant="body2">
                   {"Don't have an account? Sign Up"}
                 </Link>
               </Grid>
-              <Grid xs={12} sm={6}>
+              <Grid item xs={12} sm={6}>
                 <Link component={RouterLink} to="/forgot-password" variant="body2">
                   Forgot password?
                 </Link>

@@ -9,11 +9,22 @@ const sessionSchema = new mongoose.Schema({
   startTime: {
     type: Date,
     required: true,
-    index: true
+    validate: {
+      validator: function(v) {
+        return v > new Date();
+      },
+      message: 'Start time must be in the future'
+    }
   },
   endTime: {
     type: Date,
-    required: true
+    required: true,
+    validate: {
+      validator: function(v) {
+        return v > this.startTime;
+      },
+      message: 'End time must be after start time'
+    }
   },
   student: {
     type: mongoose.Schema.Types.ObjectId,
@@ -68,44 +79,86 @@ const sessionSchema = new mongoose.Schema({
       default: Date.now
     }
   },
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['pending', 'confirmed', 'completed', 'cancelled']
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
+}, {
+  timestamps: true
 });
 
 // Create compound index for teacher and startTime
 sessionSchema.index({ teacher: 1, startTime: -1 });
 
-// Validate that endTime is after startTime
+// Validate session duration
 sessionSchema.pre('save', function(next) {
-  if (this.endTime <= this.startTime) {
-    next(new Error('End time must be after start time'));
+  const durationInHours = (this.endTime - this.startTime) / (1000 * 60 * 60);
+  if (durationInHours > 4) {
+    next(new Error('Session duration cannot exceed 4 hours'));
   }
   next();
 });
 
-// Validate that student and teacher are different users
+// Prevent self-teaching
 sessionSchema.pre('save', function(next) {
   if (this.student.toString() === this.teacher.toString()) {
-    next(new Error('Student and teacher cannot be the same user'));
+    next(new Error('Teacher cannot be the same as student'));
   }
   next();
 });
 
-// Method to check if session is in the future
-sessionSchema.methods.isInFuture = function() {
-  return this.startTime > new Date();
-};
+// Method to check if session can be cancelled
+sessionSchema.methods.canBeCancelled = function(userId) {
+  const now = new Date();
+  const hoursUntilStart = (this.startTime - now) / (1000 * 60 * 60);
+  
+  if (this.status === 'completed' || this.status === 'cancelled') {
+    return false;
+  }
 
-// Method to check if session is completed
-sessionSchema.methods.isCompleted = function() {
-  return this.status === 'completed';
+  if (hoursUntilStart < 24) {
+    return this.teacher.toString() === userId.toString();
+  }
+
+  return true;
 };
 
 // Method to check if session can be reviewed
-sessionSchema.methods.canBeReviewed = function() {
-  return this.isCompleted() && !this.studentReview && !this.teacherReview;
+sessionSchema.methods.canBeReviewed = function(userId) {
+  if (this.status !== 'completed') {
+    return false;
+  }
+
+  const hasStudentReview = this.studentReview && this.studentReview.rating;
+  const hasTeacherReview = this.teacherReview && this.teacherReview.rating;
+
+  if (this.student.toString() === userId.toString()) {
+    return !hasStudentReview;
+  }
+
+  if (this.teacher.toString() === userId.toString()) {
+    return !hasTeacherReview;
+  }
+
+  return false;
 };
 
 module.exports = mongoose.model('Session', sessionSchema); 

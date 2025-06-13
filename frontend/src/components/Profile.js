@@ -80,12 +80,37 @@ const Profile = () => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // <-- Add this line
+          Authorization: `Bearer ${token}`,
         },
       });
-      setProfile(response.data);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      const data = await response.json();
+      
+      // Ensure we have valid data before setting state
+      if (data && typeof data === 'object') {
+        setProfile({
+          name: data.name || '',
+          email: data.email || '',
+          bio: data.bio || '',
+          skills: Array.isArray(data.skills) ? data.skills : [],
+        });
+      } else {
+        throw new Error('Invalid profile data received');
+      }
     } catch (error) {
-      setError("Failed to fetch profile");
+      console.error('Error fetching profile:', error);
+      setError(error.message || "Failed to fetch profile");
+      // Set default values on error
+      setProfile({
+        name: '',
+        email: '',
+        bio: '',
+        skills: [],
+      });
     } finally {
       setIsLoading(false);
     }

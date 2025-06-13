@@ -72,6 +72,8 @@ const ReviewList = styled(List)(({ theme }) => ({
   },
 }));
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const Dashboard = () => {
   const [sessions, setSessions] = useState([]);
   const [users, setUsers] = useState([]);
@@ -110,13 +112,6 @@ const Dashboard = () => {
     }
   }, [selectedTab, searchQuery]);
 
-  // Fetch reviews when a user is selected for viewing reviews
-  useEffect(() => {
-    if (selectedUser && isReviewsOpen) {
-      fetchUserReviews(selectedUser._id);
-    }
-  }, [selectedUser, isReviewsOpen]);
-
   const fetchSessions = async () => {
     try {
       setIsLoading(true);
@@ -128,9 +123,17 @@ const Dashboard = () => {
       const response = await axios.get(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSessions(response.data);
+
+      // Ensure we're setting an array of sessions
+      const sessionsData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data.sessions || [];
+
+      setSessions(sessionsData);
     } catch (error) {
+      console.error('Error fetching sessions:', error);
       setError('Failed to fetch sessions');
+      setSessions([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -154,22 +157,40 @@ const Dashboard = () => {
       const filteredUsers = response.data.filter(user => user._id !== currentUserId);
       setUsers(filteredUsers);
     } catch (error) {
+      console.error('Error fetching users:', error);
       setError('Failed to fetch users');
+      setUsers([]); // Set empty array on error
     }
   };
 
   const fetchUserReviews = async (userId) => {
     try {
+      setIsLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/reviews/user/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await axios.get(`${API_URL}/api/reviews/user/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+
+      if (!response.data || !response.data.reviews) {
+        throw new Error('Invalid response format');
+      }
+
       setUserReviews(prev => ({
         ...prev,
-        [userId]: response.data
+        [userId]: response.data.reviews
       }));
     } catch (error) {
-      setError('Failed to fetch reviews');
+      console.error('Error fetching reviews:', error);
+      setError(error.response?.data?.error || 'Failed to fetch reviews');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -184,18 +205,21 @@ const Dashboard = () => {
         }
       );
 
-      setSessions(sessions.map(session => 
-        session._id === response.data._id ? response.data : session
-      ));
+      setSessions(prevSessions => 
+        prevSessions.map(session => 
+          session._id === response.data._id ? response.data : session
+        )
+      );
       setSuccess('Session updated successfully');
       setIsSessionDetailsOpen(false);
     } catch (error) {
+      console.error('Error updating session:', error);
       setError('Failed to update session');
     }
   };
 
   const handleBookingSuccess = (newSession) => {
-    setSessions([...sessions, newSession]);
+    setSessions(prevSessions => [...prevSessions, newSession]);
     setSuccess('Session booked successfully');
     setIsBookingOpen(false);
   };
@@ -215,22 +239,29 @@ const Dashboard = () => {
     }
   };
 
-  const filteredSessions = sessions.filter(session => {
+  // Ensure sessions is an array before filtering
+  const filteredSessions = Array.isArray(sessions) ? sessions.filter(session => {
+    if (!session || !session.skill || !session.teacher || !session.student) {
+      return false;
+    }
     const searchLower = searchQuery.toLowerCase();
     return (
       session.skill.toLowerCase().includes(searchLower) ||
       session.teacher.name.toLowerCase().includes(searchLower) ||
       session.student.name.toLowerCase().includes(searchLower)
     );
-  });
+  }) : [];
 
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = Array.isArray(users) ? users.filter(user => {
+    if (!user || !user.name || !user.skills) {
+      return false;
+    }
     const searchLower = searchQuery.toLowerCase();
     return (
       user.name.toLowerCase().includes(searchLower) ||
       user.skills.some(skill => skill.name.toLowerCase().includes(searchLower))
     );
-  });
+  }) : [];
 
   const renderEmptyState = (message) => (
     <Box sx={{ 
@@ -250,6 +281,7 @@ const Dashboard = () => {
   const handleViewReviews = (user) => {
     setSelectedUser(user);
     setIsReviewsOpen(true);
+    fetchUserReviews(user._id);
   };
 
   const renderUserCard = (user) => (
@@ -593,53 +625,35 @@ const Dashboard = () => {
               </Typography>
             </Box>
             <Divider sx={{ my: 2 }} />
-            {userReviews[selectedUser._id]?.length > 0 ? (
-              <ReviewList>
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : userReviews[selectedUser._id]?.length > 0 ? (
+              <List>
                 {userReviews[selectedUser._id].map((review, index) => (
-                  <ListItem key={index} alignItems="flex-start" sx={{ px: 0 }}>
-                    <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: '#FF9F43' }}>
-                        {review.reviewer?.name?.charAt(0) || <PersonIcon />}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="subtitle2" sx={{ mr: 1 }}>
-                            {review.reviewer?.name || 'Anonymous'}
-                          </Typography>
-                          <Rating
-                            value={review.rating}
-                            size="small"
-                            readOnly
-                            sx={{ color: '#FF9F43' }}
-                          />
-                        </Box>
-                      }
-                      secondary={
-                        <>
-                          <Typography
-                            component="span"
-                            variant="body2"
-                            color="text.primary"
-                            sx={{ display: 'block', mt: 0.5 }}
-                          >
-                            {review.comment}
-                          </Typography>
-                          <Typography
-                            component="span"
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: 'block', mt: 0.5 }}
-                          >
-                            {new Date(review.createdAt).toLocaleDateString()}
-                          </Typography>
-                        </>
-                      }
-                    />
+                  <ListItem key={index} alignItems="flex-start" sx={{ flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Rating
+                        value={review.rating}
+                        precision={0.5}
+                        readOnly
+                        size="small"
+                        sx={{ color: '#FF9F43' }}
+                      />
+                      <Typography variant="body2" sx={{ ml: 1, color: 'text.secondary' }}>
+                        {new Date(review.createdAt).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {review.comment}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                      Skill: {review.skill}
+                    </Typography>
                   </ListItem>
                 ))}
-              </ReviewList>
+              </List>
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
                 No reviews yet

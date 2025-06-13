@@ -68,6 +68,8 @@ const TeacherDashboard = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [isSessionDetailsOpen, setIsSessionDetailsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState(null);
 
   useEffect(() => {
     fetchSessions();
@@ -90,10 +92,15 @@ const TeacherDashboard = () => {
         }
       });
 
-      setSessions(response.data);
+      const sessionsData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data.sessions || [];
+
+      setSessions(sessionsData);
     } catch (error) {
       console.error('Error fetching sessions:', error.response?.data || error.message);
       setError(error.response?.data?.error || 'Failed to fetch sessions. Please try again.');
+      setSessions([]);
     } finally {
       setIsLoading(false);
     }
@@ -101,12 +108,22 @@ const TeacherDashboard = () => {
 
   const handleSessionUpdate = async (updatedSession) => {
     try {
+      setIsUpdating(true);
+      setUpdateError(null);
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
       const response = await axios.patch(
-        `http://localhost:5000/api/sessions/${updatedSession._id}`,
+        `http://localhost:5000/api/sessions/${updatedSession._id}/status`,
         { status: updatedSession.status },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
       );
 
@@ -114,9 +131,19 @@ const TeacherDashboard = () => {
         session._id === response.data._id ? response.data : session
       ));
       setSuccess('Session updated successfully');
+      
+      // Close the session details dialog after successful update
       setIsSessionDetailsOpen(false);
     } catch (error) {
-      setError('Failed to update session');
+      console.error('Error updating session:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to update session';
+      setUpdateError(errorMessage);
+      setError(errorMessage);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -183,13 +210,16 @@ const TeacherDashboard = () => {
     }
   };
 
-  const filteredSessions = sessions.filter(session => {
+  const filteredSessions = Array.isArray(sessions) ? sessions.filter(session => {
+    if (!session || !session.skill || !session.student || !session.student.name) {
+      return false;
+    }
     const searchLower = searchQuery.toLowerCase();
     return (
       session.skill.toLowerCase().includes(searchLower) ||
       session.student.name.toLowerCase().includes(searchLower)
     );
-  });
+  }) : [];
 
   const renderEmptyState = (message) => (
     <Box sx={{ 
@@ -386,6 +416,12 @@ const TeacherDashboard = () => {
           {success}
         </Alert>
       </Snackbar>
+
+      {updateError && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {updateError}
+        </Alert>
+      )}
     </Container>
   );
 };

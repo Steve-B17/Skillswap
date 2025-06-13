@@ -9,39 +9,87 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     
-    const existingUser = await User.findOne({ email });
+    // Enhanced validation with detailed error messages
+    const validationErrors = [];
+    if (!name || name.trim().length < 2) {
+      validationErrors.push('Name must be at least 2 characters long');
+    }
+    if (!email) {
+      validationErrors.push('Email is required');
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        validationErrors.push('Invalid email format');
+      }
+    }
+    if (!password) {
+      validationErrors.push('Password is required');
+    } else if (password.length < 8) {
+      validationErrors.push('Password must be at least 8 characters long');
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      validationErrors.push('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+    }
+
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: validationErrors
+      });
+    }
+
+    // Check for existing user with case-insensitive email
+    const existingUser = await User.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    });
+    
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ 
+        error: 'Email already registered',
+        details: 'Please use a different email address or try logging in'
+      });
     }
 
     // Validate role
     if (role && !['student', 'teacher'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
+      return res.status(400).json({ 
+        error: 'Invalid role',
+        details: 'Role must be either "student" or "teacher"'
+      });
     }
 
     const user = new User({ 
-      name, 
-      email, 
+      name: name.trim(), 
+      email: email.toLowerCase().trim(), 
       password,
-      role: role || 'student' // Default to student if no role provided
+      role: role || 'student'
     });
     await user.save();
 
     const token = jwt.sign(
       { 
         userId: user._id,
-        role: user.role 
+        role: user.role,
+        email: user.email
       }, 
-      process.env.JWT_SECRET
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
     );
 
-    // Don't send password in response
     const userResponse = user.toObject();
     delete userResponse.password;
 
-    res.status(201).json({ user: userResponse, token });
+    res.status(201).json({ 
+      user: userResponse, 
+      token,
+      message: 'Registration successful'
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Registration error:', error);
+    res.status(500).json({ 
+      error: 'Registration failed',
+      details: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -127,20 +175,50 @@ router.get('/profile', auth, async (req, res) => {
 
 // Update user profile
 router.patch('/profile', auth, async (req, res) => {
-  const updates = Object.keys(req.body);
-  const allowedUpdates = ['name', 'email', 'password', 'bio', 'skills'];
-  const isValidOperation = updates.every(update => allowedUpdates.includes(update));
-
-  if (!isValidOperation) {
-    return res.status(400).json({ error: 'Invalid updates' });
-  }
-
   try {
+    const updates = Object.keys(req.body);
+    const allowedUpdates = ['name', 'email', 'password', 'bio', 'skills'];
+    const isValidOperation = updates.every(update => allowedUpdates.includes(update));
+
+    if (!isValidOperation) {
+      return res.status(400).json({ 
+        error: 'Invalid updates',
+        allowedUpdates 
+      });
+    }
+
+    // Validate email if it's being updated
+    if (updates.includes('email')) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(req.body.email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+      
+      // Check if email is already taken
+      const existingUser = await User.findOne({ email: req.body.email });
+      if (existingUser && existingUser._id.toString() !== req.user._id.toString()) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+    }
+
+    // Validate password if it's being updated
+    if (updates.includes('password') && req.body.password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
     updates.forEach(update => req.user[update] = req.body[update]);
     await req.user.save();
-    res.json(req.user);
+
+    const userResponse = req.user.toObject();
+    delete userResponse.password;
+
+    res.json(userResponse);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Profile update error:', error);
+    res.status(500).json({ 
+      error: 'Profile update failed',
+      details: error.message 
+    });
   }
 });
 

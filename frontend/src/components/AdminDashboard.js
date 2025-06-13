@@ -24,7 +24,14 @@ import {
   CircularProgress,
   Chip,
   useTheme,
-  Divider
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Tooltip,
+  Fade,
+  Modal
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
@@ -34,13 +41,15 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import EventIcon from '@mui/icons-material/Event';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
   PieChart,
@@ -87,6 +96,25 @@ const StatCard = styled(Card)(({ theme }) => ({
   },
 }));
 
+const DetailOverlay = styled(Modal)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: theme.spacing(2),
+}));
+
+const DetailContent = styled(Paper)(({ theme }) => ({
+  position: 'relative',
+  padding: theme.spacing(4),
+  maxWidth: '800px',
+  width: '100%',
+  maxHeight: '90vh',
+  overflow: 'auto',
+  borderRadius: '16px',
+  background: 'rgba(255, 255, 255, 0.98)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+}));
+
 const AdminDashboard = () => {
   const theme = useTheme();
   const [sessions, setSessions] = useState([]);
@@ -98,6 +126,11 @@ const AdminDashboard = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [detailType, setDetailType] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editedData, setEditedData] = useState(null);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalTeachers: 0,
@@ -152,7 +185,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const calculateStats = (sessionsData, usersData) => {
     try {
@@ -185,54 +218,106 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleStatusUpdate = async () => {
-    if (!selectedSession) return;
-    
+  const getSessionStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
+        return 'info';
+      case 'completed':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const handleOpenDetail = (item, type) => {
+    setSelectedItem(item);
+    setDetailType(type);
+    setEditedData(item);
+    setIsDetailOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    setSelectedItem(null);
+    setDetailType(null);
+    setEditMode(false);
+    setEditedData(null);
+  };
+
+  const handleEdit = () => {
+    setEditMode(true);
+  };
+
+  const handleSave = async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      
+      let endpoint = '';
+      let method = 'PATCH';
+      
+      if (detailType === 'session') {
+        endpoint = `${API_URL}/api/sessions/${selectedItem._id}`;
+      } else if (detailType === 'user') {
+        endpoint = `${API_URL}/api/admin/users/${selectedItem._id}`;
       }
 
-      const response = await fetch(`${API_URL}/api/sessions/${selectedSession._id}/status`, {
-        method: 'PATCH',
+      const response = await fetch(endpoint, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify(editedData)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update session status');
+        throw new Error('Failed to update data');
       }
 
-      const updatedSession = await response.json();
-      setSessions(sessions.map(session => 
-        session._id === updatedSession._id ? updatedSession : session
-      ));
-      setSuccess('Session status updated successfully');
-      setIsStatusDialogOpen(false);
+      const updatedData = await response.json();
+      
+      if (detailType === 'session') {
+        setSessions(sessions.map(session => 
+          session._id === updatedData._id ? updatedData : session
+        ));
+      } else if (detailType === 'user') {
+        setUsers(users.map(user => 
+          user._id === updatedData._id ? updatedData : user
+        ));
+      }
+
+      setSuccess('Data updated successfully');
+      setEditMode(false);
+      setSelectedItem(updatedData);
+      setEditedData(updatedData);
     } catch (error) {
-      console.error('Error updating status:', error);
+      console.error('Error updating data:', error);
       setError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteSession = async (sessionId) => {
-    if (!window.confirm('Are you sure you want to delete this session?')) return;
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
     
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      
+      let endpoint = '';
+      if (detailType === 'session') {
+        endpoint = `${API_URL}/api/sessions/${selectedItem._id}`;
+      } else if (detailType === 'user') {
+        endpoint = `${API_URL}/api/admin/users/${selectedItem._id}`;
       }
 
-      const response = await fetch(`${API_URL}/api/sessions/${sessionId}`, {
+      const response = await fetch(endpoint, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -240,125 +325,230 @@ const AdminDashboard = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete session');
+        throw new Error('Failed to delete item');
       }
 
-      setSessions(sessions.filter(session => session._id !== sessionId));
-      setSuccess('Session deleted successfully');
+      if (detailType === 'session') {
+        setSessions(sessions.filter(session => session._id !== selectedItem._id));
+      } else if (detailType === 'user') {
+        setUsers(users.filter(user => user._id !== selectedItem._id));
+      }
+
+      setSuccess('Item deleted successfully');
+      handleCloseDetail();
     } catch (error) {
-      console.error('Error deleting session:', error);
+      console.error('Error deleting item:', error);
       setError(error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getSessionStatusColor = (status) => {
-    switch (status) {
-      case 'pending':
-        return theme.palette.warning.main;
-      case 'confirmed':
-        return theme.palette.success.main;
-      case 'completed':
-        return theme.palette.info.main;
-      case 'cancelled':
-        return theme.palette.error.main;
-      default:
-        return theme.palette.grey[500];
-    }
-  };
+  const renderDetailContent = () => {
+    if (!selectedItem || !detailType) return null;
 
-  const sessionStatusData = [
-    { name: 'Pending', value: stats.pendingSessions },
-    { name: 'Confirmed', value: stats.confirmedSessions },
-    { name: 'Completed', value: stats.completedSessions },
-    { name: 'Cancelled', value: stats.cancelledSessions }
-  ];
-
-  const COLORS = [
-    theme.palette.warning.main,
-    theme.palette.success.main,
-    theme.palette.info.main,
-    theme.palette.error.main
-  ];
-
-  const renderSessionCard = (session) => {
-    if (!session || !session.teacher || !session.student) {
-      return null;
-    }
-
-    return (
-      <StyledCard key={session._id} sx={{ mb: 2 }}>
-        <CardContent>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={8}>
-              <Typography variant="h6" gutterBottom sx={{ color: theme.palette.primary.main }}>
-                {session.skill || 'No skill specified'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Teacher: {session.teacher.name || 'Unknown'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Student: {session.student.name || 'Unknown'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Date: {session.startTime ? new Date(session.startTime).toLocaleDateString() : 'No date'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Time: {session.startTime ? new Date(session.startTime).toLocaleTimeString() : 'No time'}
-              </Typography>
+    if (detailType === 'session') {
+      return (
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Session Details
+          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Skill"
+                value={editMode ? editedData.skill : selectedItem.skill}
+                onChange={(e) => setEditedData({...editedData, skill: e.target.value})}
+                disabled={!editMode}
+                margin="normal"
+              />
+              <TextField
+                fullWidth
+                label="Start Time"
+                type="datetime-local"
+                value={editMode ? editedData.startTime : selectedItem.startTime}
+                onChange={(e) => setEditedData({...editedData, startTime: e.target.value})}
+                disabled={!editMode}
+                margin="normal"
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                fullWidth
+                label="End Time"
+                type="datetime-local"
+                value={editMode ? editedData.endTime : selectedItem.endTime}
+                onChange={(e) => setEditedData({...editedData, endTime: e.target.value})}
+                disabled={!editMode}
+                margin="normal"
+                InputLabelProps={{ shrink: true }}
+              />
             </Grid>
-            <Grid item xs={12} sm={4}>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
-                <Chip
-                  label={session.status || 'pending'}
-                  sx={{
-                    backgroundColor: getSessionStatusColor(session.status),
-                    color: 'white',
-                    fontWeight: 'bold',
-                    borderRadius: '8px'
-                  }}
-                />
-                <IconButton
-                  color="primary"
-                  onClick={() => {
-                    setSelectedSession(session);
-                    setNewStatus(session.status || 'pending');
-                    setIsStatusDialogOpen(true);
-                  }}
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={editMode ? editedData.status : selectedItem.status}
+                  onChange={(e) => setEditedData({...editedData, status: e.target.value})}
+                  disabled={!editMode}
+                  label="Status"
                 >
-                  <EditIcon />
-                </IconButton>
-                <IconButton
-                  color="error"
-                  onClick={() => handleDeleteSession(session._id)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="confirmed">Confirmed</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="cancelled">Cancelled</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                label="Notes"
+                multiline
+                rows={4}
+                value={editMode ? editedData.notes : selectedItem.notes}
+                onChange={(e) => setEditedData({...editedData, notes: e.target.value})}
+                disabled={!editMode}
+                margin="normal"
+              />
             </Grid>
           </Grid>
-        </CardContent>
-      </StyledCard>
-    );
+        </Box>
+      );
+    }
+
+    if (detailType === 'user') {
+      return (
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            User Details
+          </Typography>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Name"
+                value={editMode ? editedData.name : selectedItem.name}
+                onChange={(e) => setEditedData({...editedData, name: e.target.value})}
+                disabled={!editMode}
+                margin="normal"
+              />
+              <TextField
+                fullWidth
+                label="Email"
+                value={editMode ? editedData.email : selectedItem.email}
+                onChange={(e) => setEditedData({...editedData, email: e.target.value})}
+                disabled={!editMode}
+                margin="normal"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={editMode ? editedData.role : selectedItem.role}
+                  onChange={(e) => setEditedData({...editedData, role: e.target.value})}
+                  disabled={!editMode}
+                  label="Role"
+                >
+                  <MenuItem value="student">Student</MenuItem>
+                  <MenuItem value="teacher">Teacher</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                label="Bio"
+                multiline
+                rows={4}
+                value={editMode ? editedData.bio : selectedItem.bio}
+                onChange={(e) => setEditedData({...editedData, bio: e.target.value})}
+                disabled={!editMode}
+                margin="normal"
+              />
+            </Grid>
+          </Grid>
+        </Box>
+      );
+    }
   };
 
+  const renderSessionCard = (session) => (
+    <StyledCard key={session._id}>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" component="div">
+            {session.skill}
+          </Typography>
+          <Chip
+            label={session.status}
+            color={getSessionStatusColor(session.status)}
+            size="small"
+          />
+        </Box>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          {new Date(session.startTime).toLocaleString()} - {new Date(session.endTime).toLocaleString()}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Student: {session.student?.name || 'N/A'}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Teacher: {session.teacher?.name || 'N/A'}
+        </Typography>
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+          <Tooltip title="View Details">
+            <IconButton
+              size="small"
+              onClick={() => handleOpenDetail(session, 'session')}
+            >
+              <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </CardContent>
+    </StyledCard>
+  );
+
+  const renderUserCard = (user) => (
+    <StyledCard key={user._id}>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" component="div">
+            {user.name}
+          </Typography>
+          <Chip
+            label={user.role}
+            color={user.role === 'teacher' ? 'primary' : 'secondary'}
+            size="small"
+          />
+        </Box>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          {user.email}
+        </Typography>
+        {user.bio && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {user.bio.length > 100 ? `${user.bio.substring(0, 100)}...` : user.bio}
+          </Typography>
+        )}
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+          <Tooltip title="View Details">
+            <IconButton
+              size="small"
+              onClick={() => handleOpenDetail(user, 'user')}
+            >
+              <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </CardContent>
+    </StyledCard>
+  );
+
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl">
       <StyledPaper>
-        <Typography 
-          variant="h4" 
-          gutterBottom 
-          sx={{ 
-            color: theme.palette.primary.main,
-            fontWeight: 600,
-            mb: 4
-          }}
-        >
+        <Typography variant="h4" gutterBottom>
           Admin Dashboard
         </Typography>
-
-        {/* Stats Cards */}
+        
+        {/* Stats Section */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard>
@@ -367,9 +557,24 @@ const AdminDashboard = () => {
                 <Typography variant="h6">Total Users</Typography>
               </Box>
               <Typography variant="h4">{stats.totalUsers}</Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                {stats.totalTeachers} Teachers / {stats.totalStudents} Students
-              </Typography>
+            </StatCard>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <SchoolIcon sx={{ mr: 1 }} />
+                <Typography variant="h6">Teachers</Typography>
+              </Box>
+              <Typography variant="h4">{stats.totalTeachers}</Typography>
+            </StatCard>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <PeopleIcon sx={{ mr: 1 }} />
+                <Typography variant="h6">Students</Typography>
+              </Box>
+              <Typography variant="h4">{stats.totalStudents}</Typography>
             </StatCard>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -379,222 +584,146 @@ const AdminDashboard = () => {
                 <Typography variant="h6">Total Sessions</Typography>
               </Box>
               <Typography variant="h4">{stats.totalSessions}</Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Across all statuses
-              </Typography>
-            </StatCard>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <SchoolIcon sx={{ mr: 1 }} />
-                <Typography variant="h6">Active Teachers</Typography>
-              </Box>
-              <Typography variant="h4">{stats.totalTeachers}</Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Available for sessions
-              </Typography>
-            </StatCard>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <BarChartIcon sx={{ mr: 1 }} />
-                <Typography variant="h6">Session Status</Typography>
-              </Box>
-              <Typography variant="h4">{stats.confirmedSessions}</Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Confirmed sessions
-              </Typography>
             </StatCard>
           </Grid>
         </Grid>
 
-        {/* Charts */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={6}>
-            <StyledPaper>
-              <Typography variant="h6" gutterBottom>
-                Session Status Distribution
-              </Typography>
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={sessionStatusData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {sessionStatusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </Box>
-            </StyledPaper>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <StyledPaper>
-              <Typography variant="h6" gutterBottom>
-                Sessions Over Time
-              </Typography>
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={sessions.map(session => ({
-                      date: new Date(session.startTime).toLocaleDateString(),
-                      count: 1
-                    }))}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      stroke={theme.palette.primary.main}
-                      activeDot={{ r: 8 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Box>
-            </StyledPaper>
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ my: 4 }} />
-
-        {/* Search and Sessions List */}
+        {/* Search Section */}
         <Box sx={{ mb: 4 }}>
           <TextField
             fullWidth
             variant="outlined"
-            placeholder="Search sessions..."
+            placeholder="Search sessions or users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
-                '&:hover fieldset': {
-                  borderColor: theme.palette.primary.main,
-                },
-              },
-            }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon color="primary" />
+                  <SearchIcon />
                 </InputAdornment>
               ),
             }}
           />
         </Box>
 
-        {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <CircularProgress color="primary" />
-          </Box>
-        ) : (
-          sessions
-            .filter(session => {
-              const searchLower = searchQuery.toLowerCase();
-              return (
-                session.skill.toLowerCase().includes(searchLower) ||
-                session.teacher.name.toLowerCase().includes(searchLower) ||
-                session.student.name.toLowerCase().includes(searchLower)
-              );
-            })
-            .map(renderSessionCard)
-        )}
+        {/* Sessions Section */}
+        <Typography variant="h5" gutterBottom>
+          Recent Sessions
+        </Typography>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {sessions.map(renderSessionCard)}
+        </Grid>
+
+        {/* Users Section */}
+        <Typography variant="h5" gutterBottom>
+          Users
+        </Typography>
+        <Grid container spacing={3}>
+          {users.map(renderUserCard)}
+        </Grid>
       </StyledPaper>
 
-      <Dialog
-        open={isStatusDialogOpen}
-        onClose={() => setIsStatusDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '24px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-          }
-        }}
+      {/* Detail Overlay */}
+      <DetailOverlay
+        open={isDetailOpen}
+        onClose={handleCloseDetail}
+        closeAfterTransition
       >
-        <DialogTitle>Update Session Status</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-              label="Status"
-            >
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="confirmed">Confirmed</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="cancelled">Cancelled</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsStatusDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleStatusUpdate}
-            variant="contained"
-            color="primary"
-            disabled={isLoading}
-          >
-            Update
-          </Button>
-        </DialogActions>
-      </Dialog>
+        <Fade in={isDetailOpen}>
+          <DetailContent>
+            <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+              <IconButton onClick={handleCloseDetail}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            
+            {renderDetailContent()}
+            
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              {!editMode ? (
+                <>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleEdit}
+                    disabled={isLoading}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={handleDelete}
+                    disabled={isLoading}
+                  >
+                    Delete
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setEditMode(false)}
+                    disabled={isLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSave}
+                    disabled={isLoading}
+                  >
+                    Save
+                  </Button>
+                </>
+              )}
+            </Box>
+          </DetailContent>
+        </Fade>
+      </DetailOverlay>
 
+      {/* Error Snackbar */}
       <Snackbar
         open={!!error}
         autoHideDuration={6000}
         onClose={() => setError('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
-          severity="error" 
-          onClose={() => setError('')}
-          sx={{ 
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-          }}
-        >
+        <Alert severity="error" onClose={() => setError('')}>
           {error}
         </Alert>
       </Snackbar>
 
+      {/* Success Snackbar */}
       <Snackbar
         open={!!success}
         autoHideDuration={6000}
         onClose={() => setSuccess('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
-          severity="success" 
-          onClose={() => setSuccess('')}
-          sx={{ 
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-          }}
-        >
+        <Alert severity="success" onClose={() => setSuccess('')}>
           {success}
         </Alert>
       </Snackbar>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 9999,
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      )}
     </Container>
   );
 };

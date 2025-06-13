@@ -9,48 +9,57 @@ router.post('/', auth, async (req, res) => {
   try {
     const { skill, startTime, endTime, teacher, notes } = req.body;
 
-    // Log the received data
-    console.log('Received session data:', {
-      skill,
-      startTime,
-      endTime,
-      teacher,
-      notes
-    });
-
     // Validate required fields with detailed error messages
-    const missingFields = [];
-    if (!skill) missingFields.push('skill');
-    if (!startTime) missingFields.push('startTime');
-    if (!endTime) missingFields.push('endTime');
-    if (!teacher) missingFields.push('teacher');
+    const validationErrors = [];
+    if (!skill) validationErrors.push('Skill is required');
+    if (!startTime) validationErrors.push('Start time is required');
+    if (!endTime) validationErrors.push('End time is required');
+    if (!teacher) validationErrors.push('Teacher is required');
 
-    if (missingFields.length > 0) {
+    if (validationErrors.length > 0) {
       return res.status(400).json({ 
-        error: `Missing required fields: ${missingFields.join(', ')}`,
-        details: {
-          received: {
-            skill: !!skill,
-            startTime: !!startTime,
-            endTime: !!endTime,
-            teacher: !!teacher
-          }
-        }
+        error: 'Validation failed',
+        details: validationErrors
       });
     }
 
-    // Validate date formats
-    if (!(startTime instanceof Date) && isNaN(new Date(startTime).getTime())) {
+    // Parse and validate dates
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const now = new Date();
+
+    if (isNaN(start.getTime())) {
       return res.status(400).json({
-        error: 'Invalid startTime format',
+        error: 'Invalid start time format',
         details: { received: startTime }
       });
     }
 
-    if (!(endTime instanceof Date) && isNaN(new Date(endTime).getTime())) {
+    if (isNaN(end.getTime())) {
       return res.status(400).json({
-        error: 'Invalid endTime format',
+        error: 'Invalid end time format',
         details: { received: endTime }
+      });
+    }
+
+    // Validate session timing
+    if (start < now) {
+      return res.status(400).json({
+        error: 'Start time must be in the future'
+      });
+    }
+
+    if (end <= start) {
+      return res.status(400).json({
+        error: 'End time must be after start time'
+      });
+    }
+
+    // Check session duration (e.g., max 4 hours)
+    const durationInHours = (end - start) / (1000 * 60 * 60);
+    if (durationInHours > 4) {
+      return res.status(400).json({
+        error: 'Session duration cannot exceed 4 hours'
       });
     }
 
@@ -61,10 +70,10 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Verify teacher can teach this skill
+    // Verify teacher exists and can teach this skill
     const teacherUser = await User.findById(teacher);
     if (!teacherUser) {
-      return res.status(400).json({ 
+      return res.status(404).json({ 
         error: 'Teacher not found',
         details: { teacherId: teacher }
       });
@@ -80,15 +89,40 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
+    // Check for overlapping sessions
+    const overlappingSession = await Session.findOne({
+      teacher,
+      $or: [
+        {
+          startTime: { $lt: end },
+          endTime: { $gt: start }
+        }
+      ],
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (overlappingSession) {
+      return res.status(400).json({
+        error: 'Teacher has an overlapping session',
+        details: {
+          existingSession: {
+            startTime: overlappingSession.startTime,
+            endTime: overlappingSession.endTime
+          }
+        }
+      });
+    }
+
     // Create the session
     const session = new Session({
       skill,
-      startTime,
-      endTime,
+      startTime: start,
+      endTime: end,
       student: req.user._id,
       teacher,
-      notes,
-      status: 'pending'
+      notes: notes?.trim(),
+      status: 'pending',
+      createdAt: new Date()
     });
 
     await session.save();
@@ -98,12 +132,16 @@ router.post('/', auth, async (req, res) => {
       .populate('teacher', 'name email')
       .populate('student', 'name email');
 
-    res.status(201).json(populatedSession);
+    res.status(201).json({
+      session: populatedSession,
+      message: 'Session created successfully'
+    });
   } catch (error) {
     console.error('Session creation error:', error);
-    res.status(400).json({ 
-      error: error.message,
-      details: error.stack
+    res.status(500).json({ 
+      error: 'Session creation failed',
+      details: error.message,
+      code: error.code
     });
   }
 });
@@ -129,16 +167,27 @@ router.get('/my-sessions', auth, async (req, res) => {
 
 // Update session status
 router.patch('/:id/status', auth, async (req, res) => {
-  const { status } = req.body;
-  const allowedStatuses = ['confirmed', 'completed', 'cancelled'];
-
-  if (!allowedStatuses.includes(status)) {
-    return res.status(400).json({ 
-      error: 'Invalid status' 
-    });
-  }
-
   try {
+    const { status } = req.body;
+    const allowedStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+    const statusTransitions = {
+      pending: ['confirmed', 'cancelled'],
+      confirmed: ['completed', 'cancelled'],
+      completed: [],
+      cancelled: []
+    };
+
+    // Validate status
+    if (!status || !allowedStatuses.includes(status)) {
+      return res.status(400).json({ 
+        error: 'Invalid status',
+        details: {
+          allowedStatuses,
+          received: status
+        }
+      });
+    }
+
     const session = await Session.findOne({
       _id: req.params.id,
       $or: [
@@ -149,28 +198,78 @@ router.patch('/:id/status', auth, async (req, res) => {
 
     if (!session) {
       return res.status(404).json({ 
-        error: 'Session not found' 
+        error: 'Session not found',
+        details: 'The session either does not exist or you do not have access to it'
       });
     }
 
-    // Only teacher can confirm or complete
-    if (['confirmed', 'completed'].includes(status) && 
-        session.teacher.toString() !== req.user._id.toString()) {
+    // Validate status transition
+    if (!statusTransitions[session.status].includes(status)) {
+      return res.status(400).json({
+        error: 'Invalid status transition',
+        details: {
+          currentStatus: session.status,
+          requestedStatus: status,
+          allowedTransitions: statusTransitions[session.status]
+        }
+      });
+    }
+
+    // Check permissions
+    if (status === 'confirmed' && session.teacher.toString() !== req.user._id.toString()) {
       return res.status(403).json({ 
-        error: 'Only the teacher can confirm or complete a session' 
+        error: 'Only the teacher can confirm a session' 
       });
     }
 
+    if (status === 'completed' && session.teacher.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ 
+        error: 'Only the teacher can mark a session as completed' 
+      });
+    }
+
+    // Additional validation for cancellation
+    if (status === 'cancelled') {
+      const now = new Date();
+      const hoursUntilStart = (session.startTime - now) / (1000 * 60 * 60);
+      
+      // If less than 24 hours until session, only allow cancellation by teacher
+      if (hoursUntilStart < 24 && session.teacher.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          error: 'Session can only be cancelled by teacher within 24 hours of start time'
+        });
+      }
+    }
+
+    // Update session status
     session.status = status;
+    session.updatedAt = new Date();
+    
+    // Add status change to history
+    session.statusHistory = session.statusHistory || [];
+    session.statusHistory.push({
+      status,
+      changedBy: req.user._id,
+      changedAt: new Date()
+    });
+
     await session.save();
 
     const populatedSession = await Session.findById(session._id)
       .populate('teacher', 'name email')
       .populate('student', 'name email');
 
-    res.json(populatedSession);
+    res.json({
+      session: populatedSession,
+      message: `Session ${status} successfully`
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Session status update error:', error);
+    res.status(500).json({ 
+      error: 'Failed to update session status',
+      details: error.message,
+      code: error.code
+    });
   }
 });
 
